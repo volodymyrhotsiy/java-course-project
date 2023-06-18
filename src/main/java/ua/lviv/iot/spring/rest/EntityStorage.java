@@ -96,8 +96,10 @@ public class EntityStorage {
         String rowData = "";
 
         try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            // Skip the headers row
             reader.readLine();
 
+            // Read the next line (data row)
             rowData = reader.readLine();
         } catch (IOException e) {
             e.printStackTrace();
@@ -106,59 +108,44 @@ public class EntityStorage {
         return rowData;
     }
 
-    public <T> Map<Integer, T> readObjectsFromCSV(String fileName, Class<T> objectClass) {
-        Map<Integer, T> objects = new HashMap<>();
+    public  Map<Integer, SolarStation> readObjectsFromCSV() {
+        Map<Integer, SolarStation> objects = new HashMap<>();
+        String[] values = readEntityData().split(",");
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
-            String line;
-            String[] headers = null;
-            int id = 1;
+        SolarStation solarStation = createSolarStation(values);
 
-            while ((line = reader.readLine()) != null) {
-                String[] data = line.split(",");
-
-                if (headers == null) {
-                    headers = data;
-                } else if (data.length == headers.length) {
-                    T object = createObject(data, objectClass);
-                    if (object != null) {
-                        objects.put(id, object);
-                        id++;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        objects.put(1,solarStation);
 
         return objects;
     }
 
-    private <T> T createObject(String[] data, Class<T> objectClass) {
-        if (objectClass == SolarStation.class) {
-            int id = Integer.parseInt(data[0]);
-            String address = data[1];
-            List<Panel> panels = parsePanels(data[2]);
-            List<Battery> batteries = parseBatteries(data[3]);
-            return objectClass.cast(new SolarStation(id, address, panels, batteries));
-        } else {
-            return null;
+    private SolarStation createSolarStation(String[] data) {
+        int id = Integer.parseInt(data[0]);
+        String address = data[1];
+        String panelsData = data[2];
+        String batteriesData = data[3];
+
+        List<Panel> panels = parsePanels(panelsData);
+        List<Battery> batteries = parseBatteries(batteriesData);
+
+        SolarStation solarStation = new SolarStation(id, address,panels,batteries);
+        for (Panel panel : panels) {
+            panel.setSolarStation(solarStation);
         }
+        for (Battery battery : batteries) {
+            battery.setSolarStation(solarStation);
+        }
+
+        return solarStation;
     }
 
     private List<Panel> parsePanels(String data) {
         List<Panel> panels = new ArrayList<>();
-        String[] panelStrings = data.substring(1, data.length() - 1).split(",");
+        String[] panelStrings = data.split(",");
 
         for (String panelString : panelStrings) {
-            String[] panelData = panelString.split("\\(");
-            int id = Integer.parseInt(panelData[0]);
-            Panel panel = new Panel();
-            panel.setId(id);
-            panel.setSolarStation(null);
-            panel.setType(null);
-            panel.setPower(0.0);
-            panel.setTiltAngle(0.0);
+            panelString = panelString.replaceAll("\\[|\\]", "");
+            Panel panel = createPanel(panelString);
             panels.add(panel);
         }
 
@@ -167,19 +154,46 @@ public class EntityStorage {
 
     private List<Battery> parseBatteries(String data) {
         List<Battery> batteries = new ArrayList<>();
-        String[] batteryStrings = data.substring(1, data.length() - 1).split(",");
+        String[] batteryStrings = data.split("\\], \\[");
 
         for (String batteryString : batteryStrings) {
-            String[] batteryData = batteryString.split("\\(");
-            int id = Integer.parseInt(batteryData[0]);
-            Battery battery = new Battery();
-            battery.setId(id);
-            battery.setSolarStation(null);
-            battery.setCapacity(0.0);
-            battery.setUsageDuration(0.0);
+            batteryString = batteryString.replaceAll("\\[|\\]", "");
+            Battery battery = createBattery(batteryString);
             batteries.add(battery);
         }
 
         return batteries;
+    }
+    private Panel createPanel(String data) {
+        String[] panelData = data.split(", ");
+
+        int id = Integer.parseInt(panelData[0].split("=")[1]);
+        String type = panelData[1].split("=")[1];
+        double power = Double.parseDouble(panelData[2].split("=")[1]);
+        double tiltAngle = Double.parseDouble(panelData[3].split("=")[1]);
+
+        Panel panel = new Panel();
+        panel.setId(id);
+        panel.setType(type);
+        panel.setSolarStation(null);
+        panel.setPower(power);
+        panel.setTiltAngle(tiltAngle);
+
+        return panel;
+    }
+    private Battery createBattery(String data) {
+        String[] batteryData = data.split(", ");
+
+        int id = Integer.parseInt(batteryData[0].split("=")[1]);
+        double capacity = Double.parseDouble(batteryData[1].split("=")[1]);
+        double usageDuration = Double.parseDouble(batteryData[2].split("=")[1]);
+
+        Battery battery = new Battery();
+        battery.setId(id);
+        battery.setSolarStation(null);
+        battery.setCapacity(capacity);
+        battery.setUsageDuration(usageDuration);
+
+        return battery;
     }
 }

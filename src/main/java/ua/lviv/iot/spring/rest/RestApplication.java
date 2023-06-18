@@ -1,5 +1,6 @@
 package ua.lviv.iot.spring.rest;
 
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import ua.lviv.iot.spring.rest.model.SolarStation;
 
@@ -15,6 +16,7 @@ public class RestApplication {
     private static final String ENTITY_NAME = "SolarStation";
 
     public static void main(String[] args) {
+        SpringApplication.run(RestApplication.class, args);
         Map<Integer, SolarStation> entityMap = readEntitiesFromCurrentMonth();
     }
 
@@ -26,7 +28,7 @@ public class RestApplication {
 
         for (File file : files) {
             EntityStorage entityStorage = new EntityStorage(ENTITY_NAME);
-            Map<Integer, SolarStation> entities = entityStorage.readObjectsFromCSV(file.getAbsolutePath(), SolarStation.class);
+            Map<Integer, SolarStation> entities = entityStorage.readObjectsFromCSV();
             entityMap.putAll(entities);
         }
 
